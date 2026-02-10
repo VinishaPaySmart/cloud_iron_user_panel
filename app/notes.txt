@@ -1,0 +1,16 @@
+
+response["code"] = 000 -> "success"
+
+user_details
+  status : 0 --> inactive
+           1 --> active
+  
+   payment_status : 0 -->failed
+                    1 --> success
+
+   booking_status 1 --> in-progress
+                  2 --> booked 
+                  3 --> pickuped
+                  4 --> dropped
+                  5 --> cancelled
+                  6 --> refunded
