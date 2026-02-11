@@ -17,6 +17,8 @@ from modal import BookingPaymentModel
 from modal import BookingSlotModel
 from modal import BookingServiceModel
 from modal import BookingHistoryModel
+from modal import ListProductModel
+from modal import SignUpModel
 import os
 import random
 from dotenv import load_dotenv
@@ -58,14 +60,16 @@ def verify_access_token(
 class Login:
 
     def generate_otp(self, data):
-        response = supabase.table('service_user_details').select("*").eq("mobile_no",data.mobile_no).execute()
+        response = supabase.table('users_details').select("*").eq("mobile_no",data.mobile_no).single().execute()
         if not response.data:
             raise HTTPException(status_code=400, detail="User not found")
-        otp = "12345"
+        otp = random.randint(1000, 9999)
+        update_otp = supabase.table('users_details').update({"otp" : otp}).eq("user_id",response.data['user_id']).execute()
         return {"message": "OTP sent successfully","OTP" : otp ,"code" : "000" }
 
     def sign_in(self, data):
-        user_otp = 12345
+        otp_data = supabase.table('users_details').select("otp,user_id").eq("mobile_no",data.mobile_no).single().execute()
+        user_otp = otp_data.data['otp']
         if not user_otp:
             raise HTTPException(status_code=400, detail="OTP not requested")
 
@@ -74,7 +78,7 @@ class Login:
         token = jwt_token({
             "mobile_no": data.mobile_no
         })
-
+        update_otp = supabase.table('users_details').update({"otp" : None}).eq("user_id",otp_data.data['user_id']).execute()
         return {
             "message": "Sign in successful",
             "mobile_no": data.mobile_no,
@@ -83,10 +87,40 @@ class Login:
             "code" : "000"
         }
     
+    def sign_up(self,data):
+         check_existance =   response = supabase.table('users_details').select("*").eq("mobile_no",data.mobile_no).single().execute()
+         if response.data:
+            return {
+                "status" :  "failed",
+                "message": "user already exists",
+                "code" : "010",
+            } 
+
+
+         response = supabase.table('users_details').insert({"name": data.name, "email": data.email, "mobile_no": data.mobile_no}).execute()
+         if not response.data:
+            raise HTTPException(status_code=400, detail="Process Failed Try Again")
+         return {
+             "status" : "success",
+            "message": "user Created",
+            "code" : "000",
+            "response" : response.data
+        } 
+
+class Manage_service():
+
+    def list_service(self):
+        response = supabase.table('service_details').select("*").execute()  
+        return response.data
+    
+    def list_product(self,data):
+        response = supabase.table('product_details').select("*").eq("service_id" , data.service_id).execute()  
+        return response.data
+    
 class Manage_cart:
 
     def add_cart(self,data):
-        response = (supabase.table("service_user_bag").insert({"product_id": data.product_id, "product_count": data.product_count, "bag_owner": data.user_id , "service_id" : data.service_id}).execute())
+        response = (supabase.table("service_user_bag").insert({"product_id": data.product_id, "product_count": data.product_count, "cart_id": data.cart_id , "service_id" : data.service_id}).execute())
         if not response.data:
             raise HTTPException(status_code=400, detail="Process Failed Try Again")
         print(response.data)
@@ -96,7 +130,7 @@ class Manage_cart:
         }
     
     def view_cart(self,data):
-         response = supabase.table("service_user_bag").select("id,bag_owner,product_count,product_details(product_name,id,banner_img),service_details(name,id)").eq("bag_owner",data.user_id).execute()
+         response = supabase.table("service_user_bag").select("id,product_count,product_details(product_name,id,banner_img),service_details(name,id)").eq("cart_id",data.cart_id).execute()
          return response.data
     
     def delete_cart(self,data):
@@ -174,14 +208,27 @@ Login = Login()
 Manage_cart = Manage_cart()
 Manage_user = Manage_user()
 Manage_booking = Manage_booking()
+Manage_service = Manage_service()
 
 @router.post("/generate_otp")
 def generate_otp(data: GenerateOtpModel):
     return Login.generate_otp(data)
 
+@router.post("/sign_up")
+def sign_up(data: SignUpModel):
+    return Login.sign_up(data)
+
 @router.post("/sign_in")
 def sign_in(data: LoginModel):
     return Login.sign_in(data)
+
+@router.get("/list_service")
+def list_service():
+    return Manage_service.list_service()
+
+@router.post("/list_product")
+def list_product(data: ListProductModel):
+    return Manage_service.list_product(data)
 
 @router.post("/add_cart")
 def add_cart(data: AddCartModel):
@@ -222,3 +269,4 @@ def booking_bag(data: BookingServiceModel):
 @router.post("/booking_history")
 def booking_history(data: BookingHistoryModel):
     return Manage_booking.booking_history(data)
+

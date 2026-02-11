@@ -33,11 +33,11 @@ class EditProductModel(BaseModel):
 class AddCartModel(BaseModel):
     product_id : int
     product_count : int
-    user_id : int
+    cart_id : str
     service_id : int
 
 class viewCartModel(BaseModel):
-    user_id : int
+    cart_id : str
 
 class deleteCartModel(BaseModel):
     bag_id : int
@@ -83,3 +83,11 @@ class BookingServiceModel(BaseModel):
 
 class BookingHistoryModel(BaseModel):
     user_id : int
+
+class ListProductModel(BaseModel):
+    service_id : int
+
+class SignUpModel(BaseModel):
+    name : str
+    email : str
+    mobile_no : int
